@@ -715,7 +715,12 @@ void Net<Dtype>::CompilationRuleConvReluFusion(const NetParameter& param,
         string& convolution_top_blob_name =
             const_cast<string&>(layer_param->top(0));
 
-        if(param.state().phase() == TEST) {
+        float negative_slope1 =
+                  consumer_layer_param.relu_param().negative_slope();
+        if (negative_slope1 != 0) {
+            use_negative_slope = true;
+        }
+        if(param.state().phase() == TEST && !negative_slope1) {
           const string& scale_top_blob_name = consumer_layer_param.top(0);
           // Mark Consumer layer (its name) as the one marked for dropping
           layers_to_drop.insert(consumer_layer_param.name());
@@ -726,13 +731,9 @@ void Net<Dtype>::CompilationRuleConvReluFusion(const NetParameter& param,
                                           scale_top_blob_name.size(),
                                           scale_top_blob_name);
         }
-        float negative_slope1 =
-                  consumer_layer_param.relu_param().negative_slope();
-        if (negative_slope1 != 0) {
-            use_negative_slope = true;
-        } else {
-            layer_param->mutable_convolution_param()->set_relu(true);
-            layer_param->mutable_convolution_param()->set_negative_slope(0);
+        if(!use_negative_slope) {
+          layer_param->mutable_convolution_param()->set_relu(true);
+          layer_param->mutable_convolution_param()->set_negative_slope(0);
         }
         if(param.state().phase() == TRAIN && !use_negative_slope) {
           if(i+1 < param.layer_size()) {
